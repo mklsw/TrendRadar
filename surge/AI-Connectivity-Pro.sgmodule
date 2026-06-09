@@ -1,0 +1,8 @@
+#!name=AI Connectivity Pro
+#!desc=2026 AI开发与运维连通性检测面板。检测 OpenAI、Claude、Gemini、OpenRouter、GitHub、Docker Hub、NPM、飞书、DoH DNS、出口IP、策略组与节点状态。
+#!author=Tom Wu & ChatGPT
+#!homepage=https://github.com/mklsw/TrendRadar
+#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/AI.png
+
+[Script]
+AI_Connectivity_Pro = type=generic,timeout=10,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/master/surge/ai-connectivity-panel.js,argument=title=AI%20Connectivity%20Pro&icon=network&color=%2300AEEF&timeout=5500&showIP=true&showNode=true

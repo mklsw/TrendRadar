@@ -2,7 +2,7 @@
 // Focused on AI development operations: AI reachability, exit info,
 // lightweight Surge traffic, and recent policy hints.
 
-const VERSION = 'v3.3.1';
+const VERSION = 'v3.3.2';
 
 const CORE_AI = ['OpenAI', 'Claude', 'Gemini'];
 const CORE_AI_SHORT = {
@@ -641,16 +641,47 @@ function exitLine(meta) {
 
 function policyText(policy) {
   if (!policy) return '';
-  if (policy.recent && policy.recent.length) return `近期策略 ${policy.recent.join(' · ')}`;
+  if (policy.recent && policy.recent.length) return `近期策略 ${compactPolicyRoutes(policy.recent).join(' · ')}`;
   if (policy.preferred && policy.preferred.length) return `关注策略 ${policy.preferred.slice(0, 4).join(' · ')}`;
   return '';
 }
 
 function compactPolicyText(policy) {
   if (!policy) return '';
-  if (policy.recent && policy.recent.length) return `策略 ${policy.recent.slice(0, 2).join(' · ')}`;
+  if (policy.recent && policy.recent.length) return `策略 ${compactPolicyRoutes(policy.recent).slice(0, 1).join(' · ')}`;
   if (policy.preferred && policy.preferred.length) return `关注 ${policy.preferred.slice(0, 3).join(' · ')}`;
   return '';
+}
+
+function compactPolicyRoutes(routes) {
+  const byLeaf = {};
+  const order = [];
+  (routes || []).forEach(route => {
+    const text = String(route || '').trim();
+    const leaf = policyRouteLeaf(text);
+    if (!leaf) return;
+    if (!byLeaf[leaf]) {
+      byLeaf[leaf] = text;
+      order.push(leaf);
+      return;
+    }
+    if (policyRouteSpecificity(text) > policyRouteSpecificity(byLeaf[leaf])) {
+      byLeaf[leaf] = text;
+    }
+  });
+  return order.map(leaf => byLeaf[leaf]);
+}
+
+function policyRouteLeaf(route) {
+  const parts = String(route || '')
+    .split(/\s*(?:›|->)\s*/)
+    .map(part => part.trim())
+    .filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : '';
+}
+
+function policyRouteSpecificity(route) {
+  return String(route || '').split(/\s*(?:›|->)\s*/).filter(Boolean).length;
 }
 
 function summaryText(rows, total) {

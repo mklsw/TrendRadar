@@ -1,0 +1,14 @@
+#!name=AI Connectivity Pro iOS Event Lab
+#!desc=iOS 实验版。独立注册一个首页面板和 network-changed 事件，用于测试网络变化自动触发，不影响 Stable 模块。
+#!author=Tom Wu & ChatGPT
+#!homepage=https://github.com/mklsw/TrendRadar
+#!arguments=TITLE:AI Connectivity Lab,UPDATE-INTERVAL:60,TIMEOUT:6000,ICON:network,ICON-COLOR:#00AEEF,MODE:dashboard,GROUP:all,SHOW-STATUS:true,SHOW-IP:true,IP-LOOKUP:cloudflare-ipapi,SHOW-TRAFFIC:false,SHOW-NODE:true,MASK:false,POLICIES:Homelab-Access|CN-Direct|WeChat-Homelab-SG|USHome|Global|AI-Bwg-USHome-Auto|Homelab-Core|Homelab-Backup|Homelab-SG,CUSTOM-CHECKS:none,EVENT-DELAY:3
+#!arguments-desc=TITLE:\n实验面板标题。默认 AI Connectivity Lab，避免和 Stable 卡片混淆。\n\nUPDATE-INTERVAL:\n面板刷新间隔，单位秒。\n\nEVENT-DELAY:\nnetwork-changed 触发后延迟多少秒执行检测。\n\nSHOW-TRAFFIC:\n是否显示流量，默认 false。\n\nSHOW-NODE:\n是否显示近期策略提示。\n\nCUSTOM-CHECKS:\n自定义运维检测，用 | 分隔多项，格式 name,url[,ok-statuses]。
+
+[Script]
+AI_Connectivity_Pro_Lab = type=generic,timeout=20,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/9d64e65e376f8efe5bb5941cc1a93a54dcdeab2d/surge/ai-connectivity-panel.js,argument="title={{{TITLE}}}&icon={{{ICON}}}&color={{{ICON-COLOR}}}&timeout={{{TIMEOUT}}}&mode={{{MODE}}}&group={{{GROUP}}}&showStatus={{{SHOW-STATUS}}}&showIP={{{SHOW-IP}}}&ipLookup={{{IP-LOOKUP}}}&showTraffic={{{SHOW-TRAFFIC}}}&showNode={{{SHOW-NODE}}}&mask={{{MASK}}}&policies={{{POLICIES}}}&customChecks={{{CUSTOM-CHECKS}}}"
+AI_Connectivity_Pro_Lab_Network_Changed = type=event,event-name=network-changed,timeout=20,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/9d64e65e376f8efe5bb5941cc1a93a54dcdeab2d/surge/ai-connectivity-panel.js,argument="event=true&eventDelay={{{EVENT-DELAY}}}&title={{{TITLE}}}&icon={{{ICON}}}&color={{{ICON-COLOR}}}&timeout={{{TIMEOUT}}}&mode={{{MODE}}}&group={{{GROUP}}}&showStatus={{{SHOW-STATUS}}}&showIP={{{SHOW-IP}}}&ipLookup={{{IP-LOOKUP}}}&showTraffic={{{SHOW-TRAFFIC}}}&showNode={{{SHOW-NODE}}}&mask={{{MASK}}}&policies={{{POLICIES}}}&customChecks={{{CUSTOM-CHECKS}}}"
+
+[Panel]
+# AI开发与运维连通性检测实验版
+AI_Connectivity_Pro_Lab = script-name=AI_Connectivity_Pro_Lab,update-interval={{{UPDATE-INTERVAL}}}

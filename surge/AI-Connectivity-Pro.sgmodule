@@ -1,5 +1,5 @@
 #!name=AI Connectivity Pro
-#!desc=自用 AI 开发网络面板。默认 dashboard 聚焦 AI 可达性、出口/Wi-Fi 和轻量接口流量；full/指定 GROUP 可展开 AI、Dev、Work、China、DoH 检测。
+#!desc=自用 AI 开发网络面板。默认 dashboard 聚焦 AI 可达性、本机网络、出口位置和近期策略；full/指定 GROUP 可展开 AI、Dev、Work、China、DoH 检测。
 #!author=Tom Wu & ChatGPT
 #!homepage=https://github.com/mklsw/TrendRadar
 #!arguments=TITLE:AI Connectivity Pro,UPDATE-INTERVAL:60,TIMEOUT:6000,ICON:network,ICON-COLOR:#00AEEF,MODE:dashboard,GROUP:all,SHOW-STATUS:true,SHOW-IP:true,IP-LOOKUP:cloudflare-ipapi,SHOW-TRAFFIC:false,SHOW-NODE:true,MASK:false,POLICIES:Homelab-Access|CN-Direct|WeChat-Homelab-SG|USHome|Global|AI-Bwg-USHome-Auto|Homelab-Core|Homelab-Backup|Homelab-SG,CUSTOM-CHECKS:,EVENT-SCRIPT-NAME:AI Connectivity Pro Network Changed,EVENT-DELAY:3

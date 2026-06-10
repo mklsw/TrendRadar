@@ -6,7 +6,7 @@
 #!arguments-desc=TITLE:\n面板标题。\n\nUPDATE-INTERVAL:\n面板刷新间隔，单位秒。默认 60 秒。外部 AI/Dev/Work 探测不建议 1 秒刷新。\n\nTIMEOUT:\n单项检测超时时间，单位毫秒。建议 4000-8000。最大 15000；模块脚本 timeout 已预留到 20 秒。\n\nMODE:\n面板模式。可选 dashboard、ai-only、full。\n\nGROUP:\n检测分组。可选 all、ai、dev、work、china、dns、ops、network。\n\nIP-LOOKUP:\n出口查询来源。可选 off、cloudflare、cloudflare-ipapi。\n\nSHOW-TRAFFIC:\n是否显示本地接口流量，默认 false。\n\nSHOW-NODE:\n是否显示近期策略提示。\n\nMASK:\n是否打码本机 IP 和出口 IP。\n\nCUSTOM-CHECKS:\n自定义运维检测，用 | 分隔多项，格式 name,url[,ok-statuses]。
 
 [Script]
-AI_Connectivity_Pro_Stable = type=generic,timeout=20,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/8582ab35a03c941f8757d5a5f9c52673e4303ca8/surge/ai-connectivity-panel.js,argument="title={{{TITLE}}}&icon={{{ICON}}}&color={{{ICON-COLOR}}}&timeout={{{TIMEOUT}}}&mode={{{MODE}}}&group={{{GROUP}}}&showStatus={{{SHOW-STATUS}}}&showIP={{{SHOW-IP}}}&ipLookup={{{IP-LOOKUP}}}&showTraffic={{{SHOW-TRAFFIC}}}&showNode={{{SHOW-NODE}}}&mask={{{MASK}}}&policies={{{POLICIES}}}&customChecks={{{CUSTOM-CHECKS}}}"
+AI_Connectivity_Pro_Stable = type=generic,timeout=20,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/614930f3812808f2b2b3b31d87c7e05d3cf79dea/surge/ai-connectivity-panel.js,argument="title={{{TITLE}}}&icon={{{ICON}}}&color={{{ICON-COLOR}}}&timeout={{{TIMEOUT}}}&mode={{{MODE}}}&group={{{GROUP}}}&showStatus={{{SHOW-STATUS}}}&showIP={{{SHOW-IP}}}&ipLookup={{{IP-LOOKUP}}}&showTraffic={{{SHOW-TRAFFIC}}}&showNode={{{SHOW-NODE}}}&mask={{{MASK}}}&policies={{{POLICIES}}}&customChecks={{{CUSTOM-CHECKS}}}"
 
 [Panel]
 # AI开发与运维连通性检测

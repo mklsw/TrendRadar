@@ -2,11 +2,11 @@
 // Focused on AI development operations: AI reachability, exit info,
 // lightweight Surge traffic, and recent policy hints.
 
-const VERSION = 'v3.2.0';
+const VERSION = 'v3.3.0';
 
 const CORE_AI = ['OpenAI', 'Claude', 'Gemini'];
-const DASHBOARD_GROUPS = ['ai', 'dev', 'work', 'dns'];
-const GROUP_ORDER = ['ai', 'dev', 'work', 'china', 'dns'];
+const DASHBOARD_GROUPS = ['ai', 'ops', 'dev', 'work', 'dns'];
+const GROUP_ORDER = ['ai', 'ops', 'dev', 'work', 'china', 'dns'];
 const DEFAULT_POLICIES = [
   'Homelab-Access',
   'CN-Direct',
@@ -30,9 +30,13 @@ const DEFAULT_CONFIG = {
   showStatus: true,
   showIP: true,
   ipLookup: 'cloudflare-ipapi', // off | cloudflare | cloudflare-ipapi
-  showTraffic: true,
+  showTraffic: false,
   showNode: true,
+  mask: false,
+  event: false,
+  eventDelay: 3,
   policies: DEFAULT_POLICIES,
+  customChecks: [],
 };
 
 const TARGETS = [
@@ -66,6 +70,7 @@ const GROUP_NAMES = {
   work: '🏢 Work',
   china: '🇨🇳 China',
   dns: '🧭 DoH',
+  ops: '🛠 Ops',
   network: '📍 Network',
 };
 
@@ -75,6 +80,7 @@ const GROUP_STATUS_NAMES = {
   work: 'Work',
   china: 'China',
   dns: 'DoH',
+  ops: 'Ops',
 };
 
 const config = normalizeConfig(Object.assign(
@@ -84,8 +90,11 @@ const config = normalizeConfig(Object.assign(
 ));
 
 (async () => {
+  if (config.event && config.eventDelay > 0) await wait(config.eventDelay * 1000);
+
   const started = Date.now();
-  const targets = pickTargets(TARGETS, config);
+  const allTargets = buildTargets(config);
+  const targets = pickTargets(allTargets, config);
   const metaPromise = getMeta(config);
   const trafficPromise = shouldLoadTraffic(config) ? getTraffic() : Promise.resolve(null);
   const policyPromise = config.showNode ? getPolicySnapshot(config) : Promise.resolve(null);
@@ -122,7 +131,8 @@ function probe(target, timeout) {
     };
     if (target.accept) headers.Accept = target.accept;
 
-    $httpClient.get({ url: target.url, headers }, (err, resp) => {
+    const request = { url: target.url, headers, method: target.method || 'GET' };
+    $httpClient.get(request, (err, resp) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
@@ -206,9 +216,41 @@ function readLocalNetwork(meta) {
   try {
     if (typeof $network === 'undefined') return;
     if ($network.wifi) meta.wifi = $network.wifi.ssid || $network.wifi.bssid || '';
-    if ($network.cellular) meta.cellular = $network.cellular.radio || $network.cellular.carrier || '';
+    meta.cellular = cellularNetworkText($network);
     if ($network.v4) meta.deviceIP = $network.v4.primaryAddress || '';
   } catch (e) {}
+}
+
+function cellularNetworkText(network) {
+  const cellular = network['cellular-data'] || network.cellular || {};
+  const radio = cellular.radio || '';
+  const carrier = cellular.carrier || '';
+  if (!radio && !carrier) return '';
+  const generation = radioGenerationName(radio);
+  const parts = [];
+  if (generation) parts.push(generation);
+  if (carrier && !/^\d+-\d+$/.test(carrier)) parts.push(carrier);
+  return parts.join(' · ') || '蜂窝网络';
+}
+
+function radioGenerationName(radio) {
+  const key = String(radio || '').toUpperCase();
+  const map = {
+    GPRS: '2.5G',
+    CDMA1X: '2.5G',
+    EDGE: '2.75G',
+    WCDMA: '3G',
+    HSDPA: '3.5G',
+    HSUPA: '3.75G',
+    CDMAEVDOREV0: '3.5G',
+    CDMAEVDOREVA: '3.5G',
+    CDMAEVDOREVB: '3.75G',
+    EHRPD: '3.9G',
+    LTE: '4G-LTE',
+    NRNSA: '5G-NSA',
+    NR: '5G-NR',
+  };
+  return map[key] || radio;
 }
 
 function parseCloudflareTrace(meta, data) {
@@ -232,6 +274,10 @@ function parseIpApi(meta, body) {
     meta.isp = json.isp || '';
     meta.as = json.as || '';
   } catch (e) {}
+}
+
+function buildTargets(cfg) {
+  return TARGETS.concat(cfg.customChecks || []);
 }
 
 function getTraffic() {
@@ -306,7 +352,7 @@ function extractRecentPolicies(data, preferred) {
   const items = recentItems(data).slice(0, 80);
   const counts = {};
   items.forEach(item => {
-    const name = policyNameFrom(item, preferred);
+    const name = policyRouteFrom(item, preferred) || policyNameFrom(item, preferred);
     if (!name || isIgnoredPolicyName(name)) return;
     counts[name] = (counts[name] || 0) + 1;
   });
@@ -344,6 +390,32 @@ function policyNameFrom(item, preferred) {
   return '';
 }
 
+function policyRouteFrom(item, preferred) {
+  const notes = Array.isArray(item && item.notes) ? item.notes : [];
+  for (let i = 0; i < notes.length; i++) {
+    const match = String(notes[i]).match(/Policy decision path:\s*(.+)$/);
+    if (!match) continue;
+    const parts = match[1]
+      .split(/\s*->\s*/)
+      .map(part => part.trim())
+      .filter(part => part && !isIgnoredPolicyName(part));
+    if (!parts.length) continue;
+    const preferredRoute = parts.filter(part => preferred.indexOf(part) !== -1);
+    const route = preferredRoute.length ? preferredRoute.concat(parts.slice(-1)) : parts;
+    return uniqueList(route).slice(0, 4).join(' › ');
+  }
+  return '';
+}
+
+function uniqueList(items) {
+  const seen = {};
+  return items.filter(item => {
+    if (seen[item]) return false;
+    seen[item] = true;
+    return true;
+  });
+}
+
 function safePolicyName(value) {
   return value && value.length <= 80 && value.indexOf('://') === -1 && value.indexOf('\n') === -1;
 }
@@ -366,9 +438,11 @@ function renderDashboard(meta, traffic, policy, rows, total) {
   const lines = [];
   const coreOk = coreAiOk(rows);
   const failed = rows.filter(row => !row.ok);
+  const opsRows = rows.filter(row => row.group === 'ops');
 
   lines.push(`${coreOk ? '🟢 AI Reachable' : '🔴 AI Degraded'} · ${VERSION}`);
   lines.push(CORE_AI.map(name => costText(findRow(rows, name))).filter(Boolean).join(' · '));
+  if (opsRows.length) lines.push(opsSummaryText(opsRows));
 
   dashboardNetworkLines(meta, policy).forEach(line => lines.push(line));
   dashboardTrafficLines(traffic).forEach(line => lines.push(line));
@@ -424,7 +498,7 @@ function renderGroupView(groups, meta, traffic, policy, rows, total) {
   if (wantsNetwork) {
     lines.push(`📍 Network Snapshot · ${VERSION}`);
     appendNetworkBlock(lines, meta, policy, false);
-    appendTrafficBlock(lines, traffic, true);
+    if (config.showTraffic) appendTrafficBlock(lines, traffic, true);
   }
 
   if (serviceRows.length) {
@@ -464,8 +538,8 @@ function appendNetworkBlock(lines, meta, policy, forceEmpty) {
   lines.push('');
   lines.push('📍 Network');
   if (meta.wifi) lines.push(`Wi-Fi ${meta.wifi}`);
-  if (meta.cellular) lines.push(`蜂窝 ${meta.cellular}`);
-  if (meta.deviceIP) lines.push(`设备 ${meta.deviceIP}`);
+  else if (meta.cellular) lines.push(`蜂窝 ${meta.cellular}`);
+  if (meta.deviceIP) lines.push(`设备 ${maskIP(meta.deviceIP)}`);
   if (meta.ip) lines.push(exitLine(meta));
   if (meta.country || meta.city) lines.push([meta.country, meta.city].filter(Boolean).join(' · '));
   if (meta.isp || meta.as) lines.push([meta.isp, meta.as].filter(Boolean).join(' · '));
@@ -511,13 +585,13 @@ function dashboardNetworkLines(meta, policy) {
   const lines = [];
   const local = [];
   if (meta.wifi) local.push(`Wi-Fi ${meta.wifi}`);
-  if (meta.cellular) local.push(`蜂窝 ${meta.cellular}`);
-  if (meta.deviceIP) local.push(meta.wifi || meta.cellular ? meta.deviceIP : `设备 ${meta.deviceIP}`);
+  else if (meta.cellular) local.push(`蜂窝 ${meta.cellular}`);
+  if (meta.deviceIP) local.push(meta.wifi || meta.cellular ? maskIP(meta.deviceIP) : `设备 ${maskIP(meta.deviceIP)}`);
   if (local.length) lines.push(`📍 ${local.join(' · ')}`);
 
   if (meta.ip) {
     const location = [meta.loc, meta.colo].filter(Boolean).join('/');
-    lines.push(`出口 ${meta.ip}${location ? ' · ' + location : ''}`);
+    lines.push(`出口 ${maskIP(meta.ip)}${location ? ' · ' + location : ''}`);
   }
 
   const place = [meta.country, meta.city].filter(Boolean).join(' · ');
@@ -557,7 +631,7 @@ function dashboardTrafficLines(traffic) {
 
 function exitLine(meta) {
   const suffix = [meta.loc, meta.colo].filter(Boolean).join(' · ');
-  return `出口 ${meta.ip}${suffix ? ' · ' + suffix : ''}`;
+  return `出口 ${maskIP(meta.ip)}${suffix ? ' · ' + suffix : ''}`;
 }
 
 function policyText(policy) {
@@ -569,7 +643,7 @@ function policyText(policy) {
 
 function compactPolicyText(policy) {
   if (!policy) return '';
-  if (policy.recent && policy.recent.length) return `策略 ${policy.recent.slice(0, 3).join(' · ')}`;
+  if (policy.recent && policy.recent.length) return `策略 ${policy.recent.slice(0, 2).join(' · ')}`;
   if (policy.preferred && policy.preferred.length) return `关注 ${policy.preferred.slice(0, 3).join(' · ')}`;
   return '';
 }
@@ -587,6 +661,13 @@ function dashboardSummaryText(rows, total) {
   const coreOk = coreRows.filter(row => row.ok).length;
   const icon = allOk === rows.length && coreOk === coreRows.length ? '✅' : '⚠️';
   return `${icon} Core ${coreOk}/${coreRows.length} · All ${allOk}/${rows.length} · ${total}ms`;
+}
+
+function opsSummaryText(rows) {
+  const ok = rows.filter(row => row.ok).length;
+  const failed = rows.filter(row => !row.ok);
+  if (!failed.length) return `🛠 Ops ${ok}/${rows.length}`;
+  return `🛠 Ops ${ok}/${rows.length} · ❌ ${failedListText(failed)}`;
 }
 
 function failedListText(rows) {
@@ -639,6 +720,36 @@ function pickTargets(targets, cfg) {
   return targets.filter(target => groups.indexOf(target.group) !== -1);
 }
 
+function parseCustomChecks(value) {
+  return String(value || '')
+    .split('|')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map((item, index) => {
+      const parts = item.split(',').map(part => part.trim());
+      const name = parts[0];
+      const url = parts[1];
+      if (!name || !/^https?:\/\//i.test(url || '')) return null;
+      const ok = parseStatusList(parts[2]) || [200, 204, 301, 302, 400, 401, 403, 404, 405];
+      return {
+        group: 'ops',
+        name: name.slice(0, 24) || `Ops ${index + 1}`,
+        url,
+        ok,
+      };
+    })
+    .filter(Boolean);
+}
+
+function parseStatusList(value) {
+  if (!value) return null;
+  const list = String(value)
+    .split(/[+\/;:\s]+/)
+    .map(item => Number(item.trim()))
+    .filter(item => Number.isFinite(item) && item >= 100 && item <= 599);
+  return list.length ? list : null;
+}
+
 function explicitGroups(cfg) {
   const groups = parseGroupList(cfg.group);
   if (!groups.length || groups.indexOf('all') !== -1) return [];
@@ -678,7 +789,14 @@ function parseArgument(argument) {
     if (key === 'showip') out.showIP = parseBoolean(value, true);
     if (key === 'showtraffic') out.showTraffic = parseBoolean(value, true);
     if (key === 'shownode') out.showNode = parseBoolean(value, true);
+    if (key === 'mask') out.mask = parseBoolean(value, false);
+    if (key === 'event') out.event = parseBoolean(value, false);
+    if (key === 'eventdelay') {
+      const delay = Number(value);
+      if (!Number.isNaN(delay)) out.eventDelay = delay;
+    }
     if (key === 'policies') out.policies = splitPolicies(value);
+    if (key === 'customchecks') out.customChecks = parseCustomChecks(value);
     if (key === 'timeout') {
       const timeout = Number(value);
       if (!Number.isNaN(timeout)) out.timeout = timeout;
@@ -693,6 +811,7 @@ function normalizeConfig(cfg) {
   cfg.mode = ['dashboard', 'full', 'ai-only'].indexOf(mode) !== -1 ? mode : 'dashboard';
 
   cfg.timeout = clamp(Number(cfg.timeout) || DEFAULT_CONFIG.timeout, 1000, 15000);
+  cfg.eventDelay = clamp(Number(cfg.eventDelay) || 0, 0, 30);
   cfg.ipLookup = String(cfg.ipLookup || DEFAULT_CONFIG.ipLookup).toLowerCase();
   if (['off', 'none', 'false'].indexOf(cfg.ipLookup) !== -1) cfg.ipLookup = 'off';
   if (['cloudflare', 'cf'].indexOf(cfg.ipLookup) !== -1) cfg.ipLookup = 'cloudflare';
@@ -767,6 +886,25 @@ function shortOrg(value) {
 function shortAsn(value) {
   const match = String(value || '').match(/\bAS\d+\b/i);
   return match ? match[0].toUpperCase() : shortOrg(value);
+}
+
+function maskIP(value) {
+  const text = String(value || '');
+  if (!config.mask) return text;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(text)) {
+    const parts = text.split('.');
+    return `${parts[0]}.${parts[1]}.x.x`;
+  }
+  if (text.indexOf(':') !== -1) {
+    const parts = text.split(':').filter(Boolean);
+    if (parts.length <= 2) return text;
+    return `${parts.slice(0, 2).join(':')}:…`;
+  }
+  return text;
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function clamp(value, min, max) {

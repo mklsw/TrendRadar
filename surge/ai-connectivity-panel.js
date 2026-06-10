@@ -2,7 +2,7 @@
 // Focused on AI development operations: AI reachability, exit info,
 // lightweight Surge traffic, and recent policy hints.
 
-const VERSION = 'v3.1.1';
+const VERSION = 'v3.2.0';
 
 const CORE_AI = ['OpenAI', 'Claude', 'Gemini'];
 const DASHBOARD_GROUPS = ['ai', 'dev', 'work', 'dns'];
@@ -370,19 +370,11 @@ function renderDashboard(meta, traffic, policy, rows, total) {
   lines.push(`${coreOk ? '🟢 AI Reachable' : '🔴 AI Degraded'} · ${VERSION}`);
   lines.push(CORE_AI.map(name => costText(findRow(rows, name))).filter(Boolean).join(' · '));
 
-  appendNetworkBlock(lines, meta, policy, false);
-  appendTrafficBlock(lines, traffic, false);
+  dashboardNetworkLines(meta, policy).forEach(line => lines.push(line));
+  dashboardTrafficLines(traffic).forEach(line => lines.push(line));
 
-  lines.push('');
-  lines.push('🤖 AI');
-  CORE_AI.forEach(name => {
-    const row = findRow(rows, name);
-    if (row) lines.push(rowText(row));
-  });
-
-  lines.push('');
-  lines.push(summaryText(rows, total));
-  if (failed.length) lines.push(`❌ ${failed.map(row => row.name).join(', ')}`);
+  lines.push(dashboardSummaryText(rows, total));
+  if (failed.length) lines.push(`❌ ${failedListText(failed)}`);
   return compactLines(lines).join('\n');
 }
 
@@ -515,6 +507,54 @@ function appendTrafficBlock(lines, traffic, forceEmpty) {
   }
 }
 
+function dashboardNetworkLines(meta, policy) {
+  const lines = [];
+  const local = [];
+  if (meta.wifi) local.push(`Wi-Fi ${meta.wifi}`);
+  if (meta.cellular) local.push(`蜂窝 ${meta.cellular}`);
+  if (meta.deviceIP) local.push(meta.wifi || meta.cellular ? meta.deviceIP : `设备 ${meta.deviceIP}`);
+  if (local.length) lines.push(`📍 ${local.join(' · ')}`);
+
+  if (meta.ip) {
+    const location = [meta.loc, meta.colo].filter(Boolean).join('/');
+    lines.push(`出口 ${meta.ip}${location ? ' · ' + location : ''}`);
+  }
+
+  const place = [meta.country, meta.city].filter(Boolean).join(' · ');
+  const isp = shortOrg(meta.isp);
+  const asn = shortAsn(meta.as);
+  const provider = [isp, asn].filter(Boolean).join(' · ');
+  if (place || provider) lines.push([place, provider].filter(Boolean).join(' · '));
+
+  const policyLine = compactPolicyText(policy);
+  if (policyLine) lines.push(policyLine);
+  return lines;
+}
+
+function dashboardTrafficLines(traffic) {
+  if (!traffic || !traffic.length) return [];
+  const lines = [];
+  const primary = traffic.find(row => row.raw === 'en0')
+    || traffic.find(row => !/^lo/i.test(row.raw))
+    || traffic[0];
+  const active = (primary && (primary.inSpeed || primary.outSpeed))
+    ? primary
+    : traffic.find(row => !/^lo/i.test(row.raw) && (row.inSpeed || row.outSpeed));
+  const cellular = traffic.find(row => /^pdp_ip/i.test(row.raw));
+
+  if (primary) {
+    let line = `📊 ${primary.name} ↑${fmtBytes(primary.out)} ↓${fmtBytes(primary.in)}`;
+    if (active) line += ` · ↑${fmtBytes(active.outSpeed)}/s ↓${fmtBytes(active.inSpeed)}/s`;
+    lines.push(line);
+  }
+
+  if (cellular && cellular !== primary) {
+    lines.push(`${cellular.name} ↑${fmtBytes(cellular.out)} ↓${fmtBytes(cellular.in)}`);
+  }
+
+  return lines;
+}
+
 function exitLine(meta) {
   const suffix = [meta.loc, meta.colo].filter(Boolean).join(' · ');
   return `出口 ${meta.ip}${suffix ? ' · ' + suffix : ''}`;
@@ -527,11 +567,32 @@ function policyText(policy) {
   return '';
 }
 
+function compactPolicyText(policy) {
+  if (!policy) return '';
+  if (policy.recent && policy.recent.length) return `策略 ${policy.recent.slice(0, 3).join(' · ')}`;
+  if (policy.preferred && policy.preferred.length) return `关注 ${policy.preferred.slice(0, 3).join(' · ')}`;
+  return '';
+}
+
 function summaryText(rows, total) {
   if (!rows.length) return `total ${total} ms`;
   const ok = rows.filter(row => row.ok).length;
   const icon = ok === rows.length ? '✅' : '⚠️';
   return `${icon} ${ok}/${rows.length} reachable · total ${total} ms`;
+}
+
+function dashboardSummaryText(rows, total) {
+  const allOk = rows.filter(row => row.ok).length;
+  const coreRows = CORE_AI.map(name => findRow(rows, name)).filter(Boolean);
+  const coreOk = coreRows.filter(row => row.ok).length;
+  const icon = allOk === rows.length && coreOk === coreRows.length ? '✅' : '⚠️';
+  return `${icon} Core ${coreOk}/${coreRows.length} · All ${allOk}/${rows.length} · ${total}ms`;
+}
+
+function failedListText(rows) {
+  const names = rows.slice(0, 4).map(row => row.name);
+  if (rows.length > names.length) names.push(`+${rows.length - names.length}`);
+  return names.join(', ');
 }
 
 function rowText(row) {
@@ -694,6 +755,18 @@ function fmtBytes(value) {
   if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(2) + 'MB';
   if (n >= 1024) return (n / 1024).toFixed(2) + 'KB';
   return n.toFixed(0) + 'B';
+}
+
+function shortOrg(value) {
+  return String(value || '')
+    .replace(/,\s*(LLC|Inc\.?|Limited|Ltd\.?|Corporation|Corp\.?)$/i, '')
+    .replace(/\s+(LLC|Inc\.?|Limited|Ltd\.?|Corporation|Corp\.?)$/i, '')
+    .trim();
+}
+
+function shortAsn(value) {
+  const match = String(value || '').match(/\bAS\d+\b/i);
+  return match ? match[0].toUpperCase() : shortOrg(value);
 }
 
 function clamp(value, min, max) {

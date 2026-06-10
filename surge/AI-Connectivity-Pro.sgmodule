@@ -1,11 +1,35 @@
 #!name=AI Connectivity Pro
-#!desc=2026 AI开发与运维连通性检测面板。检测 OpenAI、Claude、Gemini、OpenRouter、GitHub、Docker Hub、NPM、飞书、DoH DNS、出口IP、策略组与节点状态。
+#!desc=2026 AI开发与运维连通性检测面板。检测 OpenAI、Claude、Gemini、OpenRouter、GitHub、Docker Hub、NPM、飞书、Microsoft 365、DoH DNS、出口IP与 Wi‑Fi 状态。
 #!author=Tom Wu & ChatGPT
 #!homepage=https://github.com/mklsw/TrendRadar
+#!arguments=TITLE:AI Connectivity Pro,UPDATE-INTERVAL:60,TIMEOUT:5500,ICON:network,ICON-COLOR:#00AEEF,GROUP:all,SHOW-STATUS:true,SHOW-IP:true
+#!arguments-desc=TITLE:
+面板标题。
+
+UPDATE-INTERVAL:
+面板刷新间隔，单位秒。建议 60 秒，不建议 1 秒，除非你想让 Surge 像啄木鸟一样猛敲 API。
+
+TIMEOUT:
+单项检测超时时间，单位毫秒。建议 4000-8000。
+
+ICON:
+Surge 面板图标，例如 network、timer、wifi.router。
+
+ICON-COLOR:
+面板图标颜色，例如 #00AEEF。Surge 会自动处理模块参数里的 #。
+
+GROUP:
+检测分组。可选 all、ai、dev、work、china、network、dns，也支持逗号组合，例如 ai,dev,work。
+
+SHOW-STATUS:
+是否显示 HTTP 状态码，true 或 false。
+
+SHOW-IP:
+是否显示出口 IP，true 或 false。
 
 [Script]
-AI_Connectivity_Pro = type=generic,timeout=10,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/master/surge/ai-connectivity-panel.js,argument=title=AI%20Connectivity%20Pro&icon=network&color=%2300AEEF&timeout=5500&showIP=true&showNode=true
+AI_Connectivity_Pro = type=generic,timeout=10,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/master/surge/ai-connectivity-panel.js,argument="title={{{TITLE}}}&icon={{{ICON}}}&color={{{ICON-COLOR}}}&timeout={{{TIMEOUT}}}&group={{{GROUP}}}&showStatus={{{SHOW-STATUS}}}&showIP={{{SHOW-IP}}}&showNode=true"
 
 [Panel]
 # AI开发与运维连通性检测
-AI_Connectivity_Pro = script-name=AI_Connectivity_Pro,update-interval=60
+AI_Connectivity_Pro = script-name=AI_Connectivity_Pro,update-interval={{{UPDATE-INTERVAL}}}

@@ -1,0 +1,13 @@
+#!name=AI Connectivity Pro
+#!desc=iOS 立即可用版。脚本路径固定到已验证 commit，绕过 raw master 缓存；确认正常后可切回 AI-Connectivity-Pro.sgmodule。
+#!author=Tom Wu & ChatGPT
+#!homepage=https://github.com/mklsw/TrendRadar
+#!arguments=TITLE:AI Connectivity Pro,UPDATE-INTERVAL:60,TIMEOUT:6000,ICON:network,ICON-COLOR:#00AEEF,MODE:dashboard,GROUP:all,SHOW-STATUS:true,SHOW-IP:true,IP-LOOKUP:cloudflare-ipapi,SHOW-TRAFFIC:true,SHOW-NODE:true,POLICIES:Homelab-Access|CN-Direct|WeChat-Homelab-SG|USHome|Global|AI-Bwg-USHome-Auto|Homelab-Core|Homelab-Backup|Homelab-SG
+#!arguments-desc=TITLE:\n面板标题。\n\nUPDATE-INTERVAL:\n面板刷新间隔，单位秒。默认 60 秒。外部 AI/Dev/Work 探测不建议 1 秒刷新。\n\nTIMEOUT:\n单项检测超时时间，单位毫秒。建议 4000-8000。最大 15000；模块脚本 timeout 已预留到 20 秒。\n\nMODE:\n面板模式。可选 dashboard、ai-only、full。\n\nGROUP:\n检测分组。可选 all、ai、dev、work、china、network、dns。\n\nIP-LOOKUP:\n出口查询来源。可选 off、cloudflare、cloudflare-ipapi。\n\nSHOW-TRAFFIC / SHOW-NODE:\n是否显示本地接口流量和近期策略提示。
+
+[Script]
+AI_Connectivity_Pro = type=generic,timeout=20,script-path=https://raw.githubusercontent.com/mklsw/TrendRadar/2913b379d0faf82449e2ce5f8fd295d9c31ffd7f/surge/ai-connectivity-panel.js,argument="title={{{TITLE}}}&icon={{{ICON}}}&color={{{ICON-COLOR}}}&timeout={{{TIMEOUT}}}&mode={{{MODE}}}&group={{{GROUP}}}&showStatus={{{SHOW-STATUS}}}&showIP={{{SHOW-IP}}}&ipLookup={{{IP-LOOKUP}}}&showTraffic={{{SHOW-TRAFFIC}}}&showNode={{{SHOW-NODE}}}&policies={{{POLICIES}}}"
+
+[Panel]
+# AI开发与运维连通性检测
+AI_Connectivity_Pro = script-name=AI_Connectivity_Pro,update-interval={{{UPDATE-INTERVAL}}}

@@ -2,7 +2,7 @@
 // Focused on AI development operations: AI reachability, exit info,
 // lightweight Surge traffic, and recent policy hints.
 
-const VERSION = 'v3.1.0';
+const VERSION = 'v3.1.1';
 
 const CORE_AI = ['OpenAI', 'Claude', 'Gemini'];
 const DASHBOARD_GROUPS = ['ai', 'dev', 'work', 'dns'];

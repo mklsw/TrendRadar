@@ -2,9 +2,14 @@
 // Focused on AI development operations: AI reachability, exit info,
 // lightweight Surge traffic, and recent policy hints.
 
-const VERSION = 'v3.3.0';
+const VERSION = 'v3.3.1';
 
 const CORE_AI = ['OpenAI', 'Claude', 'Gemini'];
+const CORE_AI_SHORT = {
+  OpenAI: 'OAI',
+  Claude: 'Cl',
+  Gemini: 'Gem',
+};
 const DASHBOARD_GROUPS = ['ai', 'ops', 'dev', 'work', 'dns'];
 const GROUP_ORDER = ['ai', 'ops', 'dev', 'work', 'china', 'dns'];
 const DEFAULT_POLICIES = [
@@ -441,7 +446,7 @@ function renderDashboard(meta, traffic, policy, rows, total) {
   const opsRows = rows.filter(row => row.group === 'ops');
 
   lines.push(`${coreOk ? '🟢 AI Reachable' : '🔴 AI Degraded'} · ${VERSION}`);
-  lines.push(CORE_AI.map(name => costText(findRow(rows, name))).filter(Boolean).join(' · '));
+  lines.push(dashboardCoreLatencyText(rows));
   if (opsRows.length) lines.push(opsSummaryText(opsRows));
 
   dashboardNetworkLines(meta, policy).forEach(line => lines.push(line));
@@ -661,6 +666,15 @@ function dashboardSummaryText(rows, total) {
   const coreOk = coreRows.filter(row => row.ok).length;
   const icon = allOk === rows.length && coreOk === coreRows.length ? '✅' : '⚠️';
   return `${icon} Core ${coreOk}/${coreRows.length} · All ${allOk}/${rows.length} · ${total}ms`;
+}
+
+function dashboardCoreLatencyText(rows) {
+  const parts = CORE_AI.map(name => {
+    const row = findRow(rows, name);
+    if (!row) return '';
+    return `${CORE_AI_SHORT[name] || name} ${row.cost}`;
+  }).filter(Boolean);
+  return parts.length ? `${parts.join(' · ')} ms` : '';
 }
 
 function opsSummaryText(rows) {
